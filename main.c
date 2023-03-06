@@ -37,10 +37,42 @@
 #include "system.h"
 #include "user.h"
 
+#define T1Period 65536-224 // set acquisition period to 224 * 31.25ns 
+
+
 
 void __interrupt() ISR(void)
 {
-
+    static ADC_set = 0; // use this to control what input to measure 
+    if(TMR6IF_bit)
+    {
+        TMR6IF_bit = 0; // set low timer6 interrupt flag
+        // set analog mux
+        TMR1 = T1Period; // sets period for timer1
+        TMR1ON_bit = 1; // enable clock to timer1
+    }
+    if(TMR1IF_bit)
+    {
+        TMR1IF_bit = 0; // set low TMR1 interrupt flag
+        TMR1ON_bit = 0; // disable clock to timer1
+    }
+    if(ADIF_bit)
+    {
+        ADIF_bit = 0; // set low finished ADC conversion flag 
+        if(ADC_set) 
+        {
+            // set next channel here
+            TMR1 = T1Period;
+            TMR1ON_bit = 1;
+        }
+    }
+    if(C1IF_bit)
+    {
+        C1IF_bit = 0; // set comparator 1 interrupt bit low 
+        // OVP control here set duty cycle to 
+        // zero and start timer3 to wait to try again 
+        // reset set IRef to zero until timer3 overflow
+    }
 }
 
 

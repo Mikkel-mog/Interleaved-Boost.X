@@ -7,7 +7,7 @@
 
 void ConfigureOscillator(void)
 {
-    OSCCON = 0xF0;   
+    OSCCON = 0xF0;   // set clock as 32Mhz 
 }
 
 void ConfigureWDT(void)
@@ -17,13 +17,15 @@ void ConfigureWDT(void)
 
 void ConfigureFVR(void)
 {
-    FVRCON = 0x8F;
+    FVRCON = 0x8B; // set the FVR on, ADCREF to 4.096V and comparator ref to 2.048V
 }
 
 void ConfigureComparator(void)
 {
-    CM1CON1 = 0x72;
-    CM1CON0 = 0x94;
+    CM2CON0 = 0x96; // enable output with inverted polarity + high speed and hysterasis 
+    CM2CON1 = 0x23; // set FVR as + and C2in3- as negativ signal
+    CM1CON0 = 0x94; // enable output with inverted output polarity + high speed
+    CM1CON1 = 0x72; // set FVR as + and C1in2- as negative  + interrupt no falling edge 
 }
 
 void ConfigureADC(void)
