@@ -3,10 +3,21 @@
 
 #include "user.h"
 
+void Setup_IOs(void)
+{
+    ANSELA = 0b00010100; // set RA4 and RA2 as analog
+    TRISA = 0b00010100;
+    ANSELC = 0x0F; // set RC0, RC1, RC2 and RC3 as analog 
+    TRISC = 0x0F;
+}
+
 void Setup_PPS(void)
 {
-    RC2PPS = 0x00;
+    RC5PPS = 0x00; // set to one pwm output
+    RA5PPS = 0x00; // set to the other pwm output
+    RC4PPS = 0x02; // RC4 is set to comparator 2 output 
 }
+
 
 float PIDC(float E)
 {

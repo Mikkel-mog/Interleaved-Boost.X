@@ -19,6 +19,7 @@
 
 void Setup_PPS(void);
 
+void Setup_IOs(void);
 
 
 

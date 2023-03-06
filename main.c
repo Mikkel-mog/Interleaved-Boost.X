@@ -37,38 +37,83 @@
 #include "system.h"
 #include "user.h"
 
+
 #define T1Period 65536-224 // set acquisition period to 224 * 31.25ns 
+
+
+unsigned char C1IFLAG = 0x20;
+unsigned char TMR6IFLAG = 0x04;
+unsigned char TMR1IFLAG = 0x01;
+unsigned char ADCIFLAG = 0x40;
+unsigned char TMR1ONC = 0x01;
+
+
+unsigned int current_meas = 0;
+unsigned int voltage_out_meas = 0;
+unsigned int ref_meas = 0;
+unsigned int voltage_in_meas = 0;
 
 
 
 void __interrupt() ISR(void)
 {
     static ADC_set = 0; // use this to control what input to measure 
-    if(TMR6IF_bit)
+     
+    if(PIR2 && TMR6IFLAG)
     {
-        TMR6IF_bit = 0; // set low timer6 interrupt flag
-        // set analog mux
+        PIR2 &= ~TMR6IFLAG; // set low timer6 interrupt flag
+        ADCON0 &= 0x01;  //set mux to zero and go to off 
+        ADCON0 |= 0x10; // sets AN4 as input to ADC
         TMR1 = T1Period; // sets period for timer1
-        TMR1ON_bit = 1; // enable clock to timer1
+        T1CON |= TMR1ONC; // enable clock to timer1
+        ADC_set = 1;
     }
-    if(TMR1IF_bit)
+    
+    if(PIR1 && TMR1IFLAG)
     {
-        TMR1IF_bit = 0; // set low TMR1 interrupt flag
-        TMR1ON_bit = 0; // disable clock to timer1
+        PIR1 &= ~TMR1IFLAG; // set low TMR1 interrupt flag
+        T1CON &= ~TMR1ONC;  //disable clock to timer1
     }
-    if(ADIF_bit)
+    
+    if(PIR1 && ADCIFLAG)
     {
-        ADIF_bit = 0; // set low finished ADC conversion flag 
-        if(ADC_set) 
+        PIR1 &= ~ADCIFLAG; // set low finished ADC conversion flag 
+        switch(ADC_set)
         {
-            // set next channel here
-            TMR1 = T1Period;
-            TMR1ON_bit = 1;
-        }
+            case 0 :
+                current_meas = ADRES;
+                ADCON0 &= 0x01;  //set mux to zero and go to off 
+                ADCON0 &= 0x14;   // set AN5 as input 
+                TMR1 = T1Period;
+                T1CON |= TMR1ONC;
+                ADC_set++;
+                break;
+            case 1:
+                voltage_out_meas = ADRES;
+                ADCON0 &= 0x01;  //set mux to zero and go to off 
+                ADCON0 &= 0x08;   // set AN5 as input 
+                TMR1 = T1Period;
+                T1CON |= TMR1ONC;
+                ADC_set++;
+                break;
+            case 2:
+                ref_meas = ADRES;
+                ADCON0 &= 0x01;  //set mux to zero and go to off 
+                ADCON0 &= 0x0C;   // set AN5 as input 
+                TMR1 = T1Period;
+                T1CON |= TMR1ONC;
+                ADC_set++;
+                break;
+            case 3:
+                voltage_in_meas = ADRES;
+                ADC_set++;
+            default:
+                break;
+        }       
     }
-    if(C1IF_bit)
+    if(PIR2 && C1IFLAG)
     {
-        C1IF_bit = 0; // set comparator 1 interrupt bit low 
+        PIR2 = ~C1IFLAG; // set comparator 1 interrupt bit low 
         // OVP control here set duty cycle to 
         // zero and start timer3 to wait to try again 
         // reset set IRef to zero until timer3 overflow
@@ -78,6 +123,17 @@ void __interrupt() ISR(void)
 
 void main(void) {
 
+    ConfigureOscillator();
+    ConfigureWDT();
+    ConfigureFVR();
+    ConfigureComparator();
+    ConfigureADC();
+    ConfigureTIMER();
+    ConfigurePWM();
+    Setup_IOs();
+    Setup_PPS();
+    ConfigureINTERRUPT();
+    
     while(1)
     {
         
