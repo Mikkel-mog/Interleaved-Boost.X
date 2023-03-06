@@ -38,23 +38,11 @@
 #include "user.h"
 
 
-volatile unsigned long microseconds = 0;
 void __interrupt() ISR(void)
 {
-    if(TMR4IF)      //check for interrupt flag 
-    {
-        TMR4IF = 0;
-        microseconds+= 10;
-    }
+
 }
 
-unsigned long micros(void)
-{
-    GIE = 0;             // disable global interrupt while reading value
-    unsigned long temp = microseconds;
-    GIE = 1;            // enable global interrupt again
-    return temp;
-}
 
 void main(void) {
 

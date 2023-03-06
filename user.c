@@ -1,9 +1,11 @@
 
+#include <pic16f1615.h>
+
 #include "user.h"
 
 void Setup_PPS(void)
 {
-    
+    RC2PPS = 0x00;
 }
 
 float PIDC(float E)
