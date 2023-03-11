@@ -48,75 +48,82 @@ unsigned char ADCIFLAG = 0x40;
 unsigned char TMR1ONC = 0x01;
 
 
-unsigned int current_meas = 0;
-unsigned int voltage_out_meas = 0;
-unsigned int ref_meas = 0;
-unsigned int voltage_in_meas = 0;
+unsigned int Vout = 0;
+unsigned int Vout_temp = 0;
+unsigned int Iout = 0;
+unsigned int Iout_temp = 0;
 
-
+unsigned int Vref = 0;
+unsigned int Vref_temp = 0;
+unsigned int Vin = 0;
+unsigned int Vin_temp = 0;
+char new_sample = 0;
 
 void __interrupt() ISR(void)
 {
-    static ADC_set = 0; // use this to control what input to measure 
-     
-    if(PIR2 && TMR6IFLAG)
+    static char state = 0;
+    PORTA |= 0b00000100;
+    if(PIR2bits.TMR6IF)
     {
-        PIR2 &= ~TMR6IFLAG; // set low timer6 interrupt flag
-        ADCON0 &= 0x01;  //set mux to zero and go to off 
-        ADCON0 |= 0x10; // sets AN4 as input to ADC
-        TMR1 = T1Period; // sets period for timer1
-        T1CON |= TMR1ONC; // enable clock to timer1
-        ADC_set = 1;
+        
+        PIR2bits.TMR6IF = 0; // set low timer6 interrupt flag
+        TMR1 = T1Period;
+        T1CONbits.TMR1ON = 1;         
+        ADCON0 &= 0b10000011;
+        ADCON0 |= 0b00010000;
+        state = 0;
+        Vout = Vout_temp;
+        Vin = Vin_temp;
+        Iout = Iout_temp;
+        Vref = Vref_temp;
+        new_sample = 1;
+        
+        
     }
-    
-    if(PIR1 && TMR1IFLAG)
+    if(PIR1bits.TMR1IF)
     {
-        PIR1 &= ~TMR1IFLAG; // set low TMR1 interrupt flag
-        T1CON &= ~TMR1ONC;  //disable clock to timer1
+        PORTA &= 0b11111011;
+        PIR1bits.TMR1IF = 0;
+        T1CONbits.TMR1ON = 0;        
     }
-    
-    if(PIR1 && ADCIFLAG)
+
+        if(PIR1bits.ADIF)
     {
-        PIR1 &= ~ADCIFLAG; // set low finished ADC conversion flag 
-        switch(ADC_set)
+        PIR1bits.ADIF = 0;
+        if(state==0)
+        {            
+            ADCON0 &= 0b10000011;
+            ADCON0 |= 0b00011000;
+            TMR1 = T1Period;
+            T1CONbits.TMR1ON = 1;   
+            state++;
+            Iout_temp = ADRES;
+        }
+        else if(state == 1)
         {
-            case 0 :
-                current_meas = ADRES;
-                ADCON0 &= 0x01;  //set mux to zero and go to off 
-                ADCON0 &= 0x14;   // set AN5 as input 
-                TMR1 = T1Period;
-                T1CON |= TMR1ONC;
-                ADC_set++;
-                break;
-            case 1:
-                voltage_out_meas = ADRES;
-                ADCON0 &= 0x01;  //set mux to zero and go to off 
-                ADCON0 &= 0x08;   // set AN5 as input 
-                TMR1 = T1Period;
-                T1CON |= TMR1ONC;
-                ADC_set++;
-                break;
-            case 2:
-                ref_meas = ADRES;
-                ADCON0 &= 0x01;  //set mux to zero and go to off 
-                ADCON0 &= 0x0C;   // set AN5 as input 
-                TMR1 = T1Period;
-                T1CON |= TMR1ONC;
-                ADC_set++;
-                break;
-            case 3:
-                voltage_in_meas = ADRES;
-                ADC_set++;
-            default:
-                break;
-        }       
-    }
-    if(PIR2 && C1IFLAG)
-    {
-        PIR2 = ~C1IFLAG; // set comparator 1 interrupt bit low 
-        // OVP control here set duty cycle to 
-        // zero and start timer3 to wait to try again 
-        // reset set IRef to zero until timer3 overflow
+            ADCON0 &= 0b10000011;
+            ADCON0 |= 0b00011000;
+            TMR1 = T1Period;
+            T1CONbits.TMR1ON = 1;   
+            state++;
+            Vout_temp = ADRES;
+        }
+        else if(state == 2)
+        {
+            ADCON0 &= 0b10000011;
+            ADCON0 |= 0b00011000;
+            TMR1 = T1Period;
+            T1CONbits.TMR1ON = 1;   
+            state++;
+            Vref_temp = ADRES;
+        }
+        else if(state == 3)
+        {
+            ADCON0 &= 0b10000011;         
+            state++;
+            Vin_temp = ADRES;
+           
+        }
     }
 }
 
