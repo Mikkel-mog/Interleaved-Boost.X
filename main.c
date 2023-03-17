@@ -58,11 +58,12 @@ unsigned int Iref_temp = 0;
 unsigned int Vin = 0;
 unsigned int Vin_temp = 0;
 char new_sample = 0;
+char Duty_cycle = 0;
 
 void __interrupt() ISR(void)
 {
     static char state = 0;
-    PORTA |= 0b00000100;
+    //PORTA |= 0b00000100;
     if(PIR2bits.TMR6IF)
     {
         
@@ -71,14 +72,18 @@ void __interrupt() ISR(void)
         T1CONbits.TMR1ON = 1;         
         ADCON0 &= 0b10000011;
         ADCON0 |= 0b00010000;
+        
+        /*
+         * 
+         * apply new duty cycle here
+         */
+        
         state = 0;
         Vout = Vout_temp;
         Vin = Vin_temp;
         Iout = Iout_temp;
         Iref = Iref_temp;
-        new_sample = 1;
-        
-        
+        new_sample = 1;        
     }
     if(PIR1bits.TMR1IF)
     {
@@ -121,9 +126,15 @@ void __interrupt() ISR(void)
         {
             ADCON0 &= 0b10000011;         
             state++;
-            Vin_temp = ADRES;
-           
+            Vin_temp = ADRES;          
         }
+    }
+    if(PIR2bits_t.C1IF)
+    {
+        PIR2bits_t.C1IF = 0;
+        Duty_cycle = 0;
+        // set duty cycle to zero here
+        // this is OVP
     }
 }
 
@@ -143,9 +154,22 @@ void main(void) {
     
     while(1)
     {
+        
         if(new_sample)
         {
-            char D = Control_loop(&Vin, &Vout, &Iout, &Iref);   
+            new_sample = 0;
+            if(Vin > 290 && !CM1CON0bits_t.C1OUT)
+            {
+                Duty_cycle = Control_loop(&Vin, &Vout, &Iout, &Iref);   
+            }
+            else 
+            {
+                Duty_cycle = 0;
+                Iref = 0;
+                
+                Control_loop(&Vin, &Vout, &Iout, &Iref);   
+            }
+            
         }
     }
     return;
