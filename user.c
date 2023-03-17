@@ -6,7 +6,7 @@
 void Setup_IOs(void)
 {
     ANSELA = 0b00010100; // set RA4 and RA2 as analog
-    TRISA = 0b00010100;
+    TRISA = 0b00010000;
     ANSELC = 0x0F; // set RC0, RC1, RC2 and RC3 as analog 
     TRISC = 0x0F;
 }
@@ -20,11 +20,13 @@ void Setup_PPS(void)
 
 void Setup_PID(void)
 {
-    PID1CONbits_t.MODE0 = 1;
-    PID1CONbits_t.MODE1 = 0;
-    PID1CONbits_t.MODE2 = 1;
-    PID1CONbits_t.EN = 1;
+    PID1CONbits.MODE0 = 1;
+    PID1CONbits.MODE1 = 0;
+    PID1CONbits.MODE2 = 1;
+    PID1CONbits.EN = 1;
 }
+
+
 unsigned int IK1 = (Ikp + Ts*Iki + Ikd/Ts);
 unsigned int IK2 = -(Ikp + 2*Ikd / Ts);
 unsigned int IK3 = (Ikd/Ts);

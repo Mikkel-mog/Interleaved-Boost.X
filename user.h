@@ -12,15 +12,15 @@
 
 #include <xc.h> // include processor files - each processor file is guarded.  
 
-#define Ikp 5
+#define Ikp 50
 #define Iki 10000
-#define Ikd 0.0001
+#define Ikd 0.1
 
-#define Vkp 5
-#define Vki 10000
-#define Vkd 0.0001
+#define Vkp 50
+#define Vki 100000
+#define Vkd 0.01
 
-#define Ts 0.0001
+#define Ts 0.0002
 
 void Setup_PPS(void);
 

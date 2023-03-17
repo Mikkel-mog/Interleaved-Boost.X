@@ -27,7 +27,7 @@
 
 // CONFIG3
 #pragma config WDTCPS = WDTCPS1F// WDT Period Select (Software Control (WDTPS))
-#pragma config WDTE = ON        // Watchdog Timer Enable (WDT enabled)
+#pragma config WDTE = OFF       // Watchdog Timer Enable (WDT enabled)
 #pragma config WDTCWS = WDTCWSSW// WDT Window Select (Software WDT window size control (WDTWS bits))
 #pragma config WDTCCS = SWC     // WDT Input Clock Selector (Software control, controlled by WDTCS bits)
 
@@ -63,19 +63,15 @@ char Duty_cycle = 0;
 void __interrupt() ISR(void)
 {
     static char state = 0;
-    //PORTA |= 0b00000100;
     if(PIR2bits.TMR6IF)
     {
-        
+        PORTA |= 0b00000100;
         PIR2bits.TMR6IF = 0; // set low timer6 interrupt flag
-        TMR1 = T1Period;
         T1CONbits.TMR1ON = 1;         
         ADCON0 &= 0b10000011;
         ADCON0 |= 0b00010000;
-        
         /*
-         * 
-         * apply new duty cycle here
+         *apply duty cycle here
          */
         
         state = 0;
@@ -85,53 +81,50 @@ void __interrupt() ISR(void)
         Iref = Iref_temp;
         new_sample = 1;        
     }
-    if(PIR1bits.TMR1IF)
+    
+     if(PIR1bits.TMR1IF)
     {
-        PORTA &= 0b11111011;
         PIR1bits.TMR1IF = 0;
-        T1CONbits.TMR1ON = 0;        
+        TMR1 = T1Period;
+        T1CONbits.TMR1ON = 0;      
     }
 
-        if(PIR1bits.ADIF)
-    {
+    if(PIR1bits.ADIF)
+    {     
         PIR1bits.ADIF = 0;
         if(state==0)
         {            
+            Iout_temp = ADRES;
             ADCON0 &= 0b10000011;
             ADCON0 |= 0b00011000;
-            TMR1 = T1Period;
-            T1CONbits.TMR1ON = 1;   
+            T1CONbits.TMR1ON = 1;  
+
             state++;
-            Iout_temp = ADRES;
         }
         else if(state == 1)
         {
+            Vout_temp = ADRES;
             ADCON0 &= 0b10000011;
             ADCON0 |= 0b00011000;
-            TMR1 = T1Period;
             T1CONbits.TMR1ON = 1;   
             state++;
-            Vout_temp = ADRES;
         }
         else if(state == 2)
         {
+            Iref_temp = ADRES;
             ADCON0 &= 0b10000011;
             ADCON0 |= 0b00011000;
-            TMR1 = T1Period;
             T1CONbits.TMR1ON = 1;   
             state++;
-            Iref_temp = ADRES;
         }
         else if(state == 3)
         {
-            ADCON0 &= 0b10000011;         
-            state++;
-            Vin_temp = ADRES;          
+            Vin_temp = ADRES;   
         }
     }
-    if(PIR2bits_t.C1IF)
+    if(PIR2bits.C1IF)
     {
-        PIR2bits_t.C1IF = 0;
+        PIR2bits.C1IF = 0;
         Duty_cycle = 0;
         // set duty cycle to zero here
         // this is OVP
@@ -141,7 +134,8 @@ void __interrupt() ISR(void)
 
 void main(void) {
 
-    ConfigureOscillator();
+    ConfigureOscillator();  
+    
     ConfigureWDT();
     ConfigureFVR();
     ConfigureComparator();
@@ -150,27 +144,38 @@ void main(void) {
     ConfigurePWM();
     Setup_IOs();
     Setup_PPS();
+    Setup_PID();
+
     ConfigureINTERRUPT();
+
+
+    TRISA &= 0b11111011;
+    PORTA &= 0b11111011;
+    PORTA |= 0b00000100;
+
     
     while(1)
     {
-        
+
         if(new_sample)
         {
             new_sample = 0;
-            if(Vin > 290 && !CM1CON0bits_t.C1OUT)
+            if(Vin > 290 && !CM1CON0bits.C1OUT)
             {
-                Duty_cycle = Control_loop(&Vin, &Vout, &Iout, &Iref);   
+              Iref = 512;
+              Duty_cycle = Control_loop(&Vin, &Vout, &Iout, &Iref);   
+
             }
             else 
             {
                 Duty_cycle = 0;
                 Iref = 0;
-                
+
                 Control_loop(&Vin, &Vout, &Iout, &Iref);   
             }
-            
+            PORTA &= 0b11111011;
         }
+        
     }
     return;
 }
