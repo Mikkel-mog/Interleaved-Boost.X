@@ -53,8 +53,8 @@ unsigned int Vout_temp = 0;
 unsigned int Iout = 0;
 unsigned int Iout_temp = 0;
 
-unsigned int Vref = 0;
-unsigned int Vref_temp = 0;
+unsigned int Iref = 0;
+unsigned int Iref_temp = 0;
 unsigned int Vin = 0;
 unsigned int Vin_temp = 0;
 char new_sample = 0;
@@ -75,7 +75,7 @@ void __interrupt() ISR(void)
         Vout = Vout_temp;
         Vin = Vin_temp;
         Iout = Iout_temp;
-        Vref = Vref_temp;
+        Iref = Iref_temp;
         new_sample = 1;
         
         
@@ -115,7 +115,7 @@ void __interrupt() ISR(void)
             TMR1 = T1Period;
             T1CONbits.TMR1ON = 1;   
             state++;
-            Vref_temp = ADRES;
+            Iref_temp = ADRES;
         }
         else if(state == 3)
         {
@@ -143,7 +143,10 @@ void main(void) {
     
     while(1)
     {
-        
+        if(new_sample)
+        {
+            char D = Control_loop(&Vin, &Vout, &Iout, &Iref);   
+        }
     }
     return;
 }

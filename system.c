@@ -22,15 +22,45 @@ void ConfigureFVR(void)
 
 void ConfigureComparator(void)
 {
-    CM2CON0 = 0x96; // enable output with inverted polarity + high speed and hysterasis 
-    CM2CON1 = 0x23; // set FVR as + and C2in3- as negativ signal
-    CM1CON0 = 0x94; // enable output with inverted output polarity + high speed
-    CM1CON1 = 0x72; // set FVR as + and C1in2- as negative  + interrupt no falling edge 
-    PIE2 = 0x20; // enables interrupt on comparator 1 edge
+    //inverts output polarity
+    CM2CON0bits_t.C2POL = 1;
+    // enable high speed
+    CM2CON0bits_t.C2SP = 1;
+    //enable hystersis
+    CM2CON0bits_t.C2HYS = 1;
+    //disable synchrouns mode
+    CM2CON0bits_t.C2SYNC = 0;   
+    //set + input to FVR
+    CM2CON1bits_t.C2PCH0 = 0;
+    CM2CON1bits_t.C2PCH1 = 1;
+    //set - input to C2IN3-
+    CM2CON1bits_t.C2NCH2 = 0;
+    CM2CON1bits_t.C2NCH1 = 1;
+    CM2CON1bits_t.C2NCH0 = 1;  
+    //inverts output polarity of comparator
+    CM1CON0bits_t.C1POL = 1;
+    //enable high speed mode
+    CM1CON0bits_t.C1SP = 1;  
+    //enable positive edge interupt
+    CM1CON1bits_t.C1INTP = 1;   
+    //set + input to FVR
+    CM1CON1bits_t.C1PCH0 = 0;
+    CM1CON1bits_t.C1PCH1 = 1;   
+    //set - input to C1in1-
+    CM1CON1bits_t.C1NCH2 = 0;
+    CM1CON1bits_t.C1NCH1 = 1;
+    CM1CON1bits_t.C1NCH0 = 0;
+    
+    //enable both comparators 
+    CM1CON0bits_t.C1ON = 1;
+    CM2CON0bits_t.C2ON = 1;
+    // enables interrupt on comparator 1 edge
+    PIE2bits_t.C1IE = 1;
 }
 
 void ConfigureADC(void)
 {
+    
     ADCON0 = 0x01;
     ADCON1 = 0xA3; // set clock to FOSC/32 giving a Tad of 1us
     ADCON2 = 0x20;//  Sets timer1 overflow as trigger for auto conversion
