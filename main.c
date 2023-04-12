@@ -58,7 +58,8 @@ unsigned int Iref_temp = 0;
 unsigned int Vin = 0;
 unsigned int Vin_temp = 0;
 char new_sample = 0;
-char Duty_cycle = 0;
+uint16_t CDC = 0;
+uint8_t PWM_period = 39;
 
 void __interrupt() ISR(void)
 {
@@ -70,9 +71,9 @@ void __interrupt() ISR(void)
         T1CONbits.TMR1ON = 1;         
         ADCON0 &= 0b10000011;
         ADCON0 |= 0b00010000;
-        /*
-         *apply duty cycle here
-         */
+        
+        Period8BitSet(PWM_period);
+        LoadDutyValue(CDC);
         
         state = 0;
         Vout = Vout_temp;
@@ -125,7 +126,7 @@ void __interrupt() ISR(void)
     if(PIR2bits.C1IF)
     {
         PIR2bits.C1IF = 0;
-        Duty_cycle = 0;
+        CDC = 0;
         // set duty cycle to zero here
         // this is OVP
     }
@@ -160,18 +161,41 @@ void main(void) {
         if(new_sample)
         {
             new_sample = 0;
-            if(Vin > 290 && !CM1CON0bits.C1OUT)
+            if(1/*Vin > 290 && !CM1CON0bits.C1OUT*/)
             {
+              static char freq_iterator = 0; 
+              freq_iterator++;
+              if(freq_iterator == 20) freq_iterator = 0;
+              
               Iref = 512;
-              Duty_cycle = Control_loop(&Vin, &Vout, &Iout, &Iref);   
-
+              Iout = 255;
+              Vin = 512;
+              
+              Vout = 600;
+              unsigned int Vin_filtered = LP_filter(Vin);
+              unsigned int Vref;
+              char Duty_cycle = Control_loop(&Vin_filtered, &Vout, &Vref, &Iout, &Iref);   
+              
+              int delta_d = FF_CON(Vin, Vin_filtered, Duty_cycle);
+              
+              if((int)Duty_cycle - delta_d < 0 || Duty_cycle == 0) Duty_cycle = 0; 
+              else
+              {
+                  Duty_cycle = Duty_cycle - delta_d;
+              }
+              
+              if(Duty_cycle > 204) Duty_cycle = 204;
+              
+              CDC = Duty_cycle-(Duty_cycle*arr_i[freq_iterator]>>6);
+              
+              PWM_period = 63 - arr_i[freq_iterator]; 
             }
             else 
             {
-                Duty_cycle = 0;
+                CDC = 0;
                 Iref = 0;
-
-                Control_loop(&Vin, &Vout, &Iout, &Iref);   
+                
+                Control_loop(&Vin, &Vout,0, &Iout, &Iref);   
             }
             PORTA &= 0b11111011;
         }

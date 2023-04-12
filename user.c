@@ -5,16 +5,33 @@
 
 void Setup_IOs(void)
 {
-    ANSELA = 0b00010100; // set RA4 and RA2 as analog
-    TRISA = 0b00010000;
-    ANSELC = 0x0F; // set RC0, RC1, RC2 and RC3 as analog 
-    TRISC = 0x0F;
+       
+    TRISAbits.TRISA2 = 1;
+    TRISAbits.TRISA4 = 1;
+    TRISAbits.TRISA5 = 0;
+    
+    TRISCbits.TRISC0 = 1;
+    TRISCbits.TRISC1 = 1;
+    TRISCbits.TRISC2 = 1;        
+    TRISCbits.TRISC3 = 1;
+    TRISCbits.TRISC4 = 0;
+    TRISCbits.TRISC5 = 0;
+    
+    
+    ANSELAbits.ANSA2 = 1;
+    ANSELAbits.ANSA4 = 1;
+    
+    ANSELCbits.ANSC0 = 1;
+    ANSELCbits.ANSC1 = 1;
+    ANSELCbits.ANSC2 = 1;
+    ANSELCbits.ANSC3 = 1;
+
 }
 
 void Setup_PPS(void)
 {
-    RC5PPS = 0x00; // set to one pwm output
-    RA5PPS = 0x00; // set to the other pwm output
+    RA5PPS = 0x0C;   //RA0 ->CCP1   
+    RC5PPS = 0x0D;   //RA2->CCP2
     RC4PPS = 0x02; // RC4 is set to comparator 2 output 
 }
 
@@ -27,15 +44,15 @@ void Setup_PID(void)
 }
 
 
-unsigned int IK1 = (Ikp + Ts*Iki + Ikd/Ts);
-unsigned int IK2 = -(Ikp + 2*Ikd / Ts);
-unsigned int IK3 = (Ikd/Ts);
+int IK1 = (Ikp + Ts*Iki + Ikd/Ts);
+int IK2 = -(Ikp + 2*Ikd / Ts);
+int IK3 = (Ikd/Ts);
 
-unsigned int VK1 = (Vkp + Ts*Vki + Vkd/Ts);
-unsigned int VK2 = -(Vkp + 2*Vkd / Ts);
-unsigned int VK3 = (Vkd/Ts);
+int VK1 = (Vkp + Ts*Vki + Vkd/Ts);
+int VK2 = -(Vkp + 2*Vkd / Ts);
+int VK3 = (Vkd/Ts);
 
-char Control_loop(unsigned int *Vin, unsigned int *Vout, unsigned int *Iout, unsigned int *Iref)
+char Control_loop(unsigned int *Vin, unsigned int *Vout, unsigned int *Vref, unsigned int *Iout, unsigned int *Iref)
 {
     
     static char IOUTU = 0;
@@ -81,8 +98,8 @@ char Control_loop(unsigned int *Vin, unsigned int *Vout, unsigned int *Iout, uns
     PID1Z2H = IZ2H;
     PID1Z2L = IZ2L;
 
-    PID1SET = *Iref;  // current ref here 
-    PID1IN = (*Iout<<1);    // current feedback shifted by one bit to multiply with 2
+    PID1SET = (*Iref<<1);  // current ref here 
+    PID1IN = *Iout;    // current feedback shifted by one bit to multiply with 2
 
     while(PID1CONbits.BUSY)NOP();   //wait for finished calculation
 
@@ -99,26 +116,27 @@ char Control_loop(unsigned int *Vin, unsigned int *Vout, unsigned int *Iout, uns
     IZ2H = PID1Z2H;
     IZ2L = PID1Z2L;
 
-    unsigned int Vref = IOUTHL | (IOUTHH*256);
+    unsigned int _Vref = IOUTLH | (IOUTHL*256);
 
     if(PID1OUTU)  // check for negativ value
     {
-        Vref = *Vin;
+        _Vref = *Vin;
         IOUTU = 0;
         IOUTHH = 0;
         IOUTHL = 0;
         IOUTLH = 0;
         IOUTLL = 0;
     }
-    Vref += *Vin;  // add input voltage to reference 
+    _Vref += *Vin;  // add input voltage to reference 
     
-    if(Vref>1024)   // saturate Vref at 60V
+    if(_Vref>1024)   // saturate Vref at 60V
     {
-        Vref = 1023;
-        IOUTLL = (char)(Vref - *Vin);
-        IOUTLH = (char)((Vref - *Vin)>>8);
+        _Vref = 1023;
+        IOUTLL = (char)(_Vref - *Vin);
+        IOUTLH = (char)((_Vref - *Vin)>>8);
     }
     
+    *Vref = _Vref;
      /*
      * Input K parameters for voltage controller
      * then the previous state of voltage controller is loaded
@@ -139,7 +157,7 @@ char Control_loop(unsigned int *Vin, unsigned int *Vout, unsigned int *Iout, uns
     PID1Z2H = VZ2H;
     PID1Z2L = VZ2L;
 
-    PID1SET = Vref;     // input voltage reference
+    PID1SET = _Vref;     // input voltage reference
     PID1IN = *Vout;     // input voltage feedback and starts conversion
 
     while(PID1CONbits.BUSY)NOP() ;  //wait for finished calculation
@@ -159,7 +177,7 @@ char Control_loop(unsigned int *Vin, unsigned int *Vout, unsigned int *Iout, uns
     VZ2L = PID1Z2L;
 
 
-    char Duty_cycle = VOUTHL; 
+    char Duty_cycle = VOUTLH; 
     if(PID1OUTU) // check for negativ value
     {
         Duty_cycle = 0;
@@ -179,3 +197,53 @@ char Control_loop(unsigned int *Vin, unsigned int *Vout, unsigned int *Iout, uns
 }
 
 
+void LoadDutyValue(uint16_t dutyValue)
+{
+    dutyValue &= 0x03FF;
+    
+    // Load duty cycle value
+    if(CCP1CONbits.FMT)
+    {
+        dutyValue <<= 6;
+        CCPR1H = dutyValue >> 8;
+        CCPR1L = dutyValue;
+        
+        CCPR2H = dutyValue >> 8;
+        CCPR2L = dutyValue;
+    }
+    else
+    {
+        CCPR1H = dutyValue >> 8;
+        CCPR1L = dutyValue;
+        
+        CCPR2H = dutyValue >> 8;
+        CCPR2L = dutyValue;
+    }
+}
+
+void Period8BitSet(uint8_t periodVal)
+{
+   T2PR = periodVal;
+   T4PR = periodVal-3;
+}
+
+unsigned int LP_filter(unsigned int in)
+{
+    static unsigned long filter = 0;
+    static unsigned int result = 0;
+    filter = filter - result + in;
+    result = (filter>>8);
+    return result;
+}
+
+
+/*
+ * responce in duty cycle based on input fluctuations. 
+ * new version takes into account the change needed based on 
+ * the DC duty cycle
+ */
+int FF_CON(uint16_t in, uint16_t  in_f, uint16_t _Vout)
+{
+    uint16_t a = (((1708 - _Vout)*11)>>9) ; 
+    return (int)((in * a)>>6) - (int)((in_f * a)>>6);   
+}
