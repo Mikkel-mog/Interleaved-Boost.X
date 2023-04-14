@@ -97,11 +97,11 @@ void ConfigureTIMER(void)
     PIR2bits.TMR4IF = 0;
     // T4CKPS 1:1; T4OUTPS 1:1; TMR4ON on; 
     T4CON = 0x80;     
-    // set sample rate to 5khz    
+    // set sample rate to 4khz    
     T6CLKCON = 0x00;  // sets clock to FOSC/4 with a period of 125ns 
     T6CON = 0x40;     // set prescaler to 4 and no postscaler giving a period of 500ns 
     T6HLT = 0x00;     // Sets mode to software gate free running, reset automatically when TMR6 = PR6
-    PR6 = 99;       // PR6 should be set to the time between samples 
+    PR6 = 124;       //  PR6 should be set to the time between samples here it is 4khz (250us/2us -1)
 
     T6CON |= 0x80;
             
@@ -128,7 +128,8 @@ void ConfigurePWM(void)
 
 void ConfigureINTERRUPT(void)
 {
-    PIE1bits.TMR1IE = 1;
+   //PIE1bits.TMR1IE = 1;
+    T1CONbits.TMR1ON = 1;
     PIE1bits.ADIE = 1;
     PIE2bits.C1IE = 1;
     PIE2bits.TMR6IE = 1;
