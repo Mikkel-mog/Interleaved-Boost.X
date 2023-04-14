@@ -64,42 +64,54 @@ uint8_t PWM_period = 39;
 void __interrupt() ISR(void)
 {
     static char state = 0;
+   // PORTA |= 0b00000100;
     if(PIR2bits.TMR6IF)
     {
-        PORTA |= 0b00000100;
+      PORTA |= 0b00000100;
+
         PIR2bits.TMR6IF = 0; // set low timer6 interrupt flag
-        T1CONbits.TMR1ON = 1;         
+    //    T1CONbits.TMR1ON = 1;         
         ADCON0 &= 0b10000011;
         ADCON0 |= 0b00010000;
-        
+        TMR1 = T1Period; 
         Period8BitSet(PWM_period);
+
         LoadDutyValue(CDC);
-        
-        state = 0;
+
+        /*state = 0;
         Vout = Vout_temp;
         Vin = Vin_temp;
-        Iout = Iout_temp;
-        Iref = Iref_temp;
-        new_sample = 1;        
+        Iout = (Iout_temp<<1);
+        Iref = Iref_temp;*/
+        
+        Iref = 512;
+        Iout = 255;
+        Vin = 512;          
+        Vout = 200;
+        state = 0;
+        new_sample = 1;      
+
     }
     
-     if(PIR1bits.TMR1IF)
+   // PIR1bits.TMR1IF = 0;
+     /*if(PIR1bits.TMR1IF)
     {
         PIR1bits.TMR1IF = 0;
-        TMR1 = T1Period;
-        T1CONbits.TMR1ON = 0;      
-    }
+        T1CONbits.TMR1ON = 0;   
+        TMR1 = T1Period; 
+    }*/
 
     if(PIR1bits.ADIF)
     {     
         PIR1bits.ADIF = 0;
+
         if(state==0)
         {            
             Iout_temp = ADRES;
             ADCON0 &= 0b10000011;
             ADCON0 |= 0b00011000;
-            T1CONbits.TMR1ON = 1;  
-
+            TMR1 = T1Period;
+        //    T1CONbits.TMR1ON = 1;  
             state++;
         }
         else if(state == 1)
@@ -107,7 +119,8 @@ void __interrupt() ISR(void)
             Vout_temp = ADRES;
             ADCON0 &= 0b10000011;
             ADCON0 |= 0b00011000;
-            T1CONbits.TMR1ON = 1;   
+            TMR1 = T1Period;
+         //   T1CONbits.TMR1ON = 1;   
             state++;
         }
         else if(state == 2)
@@ -115,13 +128,15 @@ void __interrupt() ISR(void)
             Iref_temp = ADRES;
             ADCON0 &= 0b10000011;
             ADCON0 |= 0b00011000;
-            T1CONbits.TMR1ON = 1;   
+            TMR1 = T1Period;
+         //   T1CONbits.TMR1ON = 1;   
             state++;
         }
         else if(state == 3)
         {
             Vin_temp = ADRES;   
         }
+           
     }
     if(PIR2bits.C1IF)
     {
@@ -130,6 +145,7 @@ void __interrupt() ISR(void)
         // set duty cycle to zero here
         // this is OVP
     }
+   // PORTA &= 0b11111011; 
 }
 
 
@@ -138,13 +154,21 @@ void main(void) {
     ConfigureOscillator();  
     
     ConfigureWDT();
+    
     ConfigureFVR();
+    
     ConfigureComparator();
+    
     ConfigureADC();
+    
     ConfigureTIMER();
+    
     ConfigurePWM();
+    
     Setup_IOs();
+    
     Setup_PPS();
+    
     Setup_PID();
 
     ConfigureINTERRUPT();
@@ -161,41 +185,51 @@ void main(void) {
         if(new_sample)
         {
             new_sample = 0;
-            if(1/*Vin > 290 && !CM1CON0bits.C1OUT*/)
+            
+            if(Vin > 290 && !CM1CON0bits.C1OUT)
             {
-              static char freq_iterator = 0; 
+              static uint8_t freq_iterator = 0; 
               freq_iterator++;
               if(freq_iterator == 20) freq_iterator = 0;
-              
-              Iref = 512;
-              Iout = 255;
-              Vin = 512;
-              
-              Vout = 600;
-              unsigned int Vin_filtered = LP_filter(Vin);
-              unsigned int Vref;
-              char Duty_cycle = Control_loop(&Vin_filtered, &Vout, &Vref, &Iout, &Iref);   
-              
-              int delta_d = FF_CON(Vin, Vin_filtered, Duty_cycle);
-              
-              if((int)Duty_cycle - delta_d < 0 || Duty_cycle == 0) Duty_cycle = 0; 
+ 
+              uint16_t Vin_filtered = Vin_LP_filter(Vin);  
+
+
+              uint16_t Iout_filtered = Current_LP_filter(Iout);
+
+
+              uint8_t Duty_cycle = Control_loop(Vin_filtered, Vout, Iout_filtered, Iref);  
+
+
+              int8_t delta_d = FF_CON(Vin, Vin_filtered, Vout);
+
+              if((int16_t)Duty_cycle - delta_d < 0 || Duty_cycle == 0) Duty_cycle = 0; 
               else
               {
                   Duty_cycle = Duty_cycle - delta_d;
               }
+
+
               
               if(Duty_cycle > 204) Duty_cycle = 204;
+
+
+              uint16_t temp =(uint16_t)Duty_cycle*(uint16_t)arr_i[freq_iterator];//multiply(arr_i[freq_iterator],(uint16_t)Duty_cycle);
+             
+              temp = (temp>>4);
+              temp = (temp>>2);
               
-              CDC = Duty_cycle-(Duty_cycle*arr_i[freq_iterator]>>6);
+              CDC = Duty_cycle - temp;  
               
-              PWM_period = 63 - arr_i[freq_iterator]; 
+              PWM_period = 63 - arr_i[freq_iterator];
+             
             }
             else 
             {
                 CDC = 0;
                 Iref = 0;
                 
-                Control_loop(&Vin, &Vout,0, &Iout, &Iref);   
+                Control_loop(Vin, Vout, Iout, Iref);   
             }
             PORTA &= 0b11111011;
         }
