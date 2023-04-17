@@ -196,9 +196,10 @@ void main(void) {
 
 
               uint16_t Iout_filtered = Current_LP_filter(Iout);
+              
+              uint16_t Vout_filtered = Vout_LP_filter(Vout);
 
-
-              uint8_t Duty_cycle = Control_loop(Vin_filtered, Vout, Iout_filtered, Iref);  
+              uint8_t Duty_cycle = Control_loop(Vin_filtered, Vout_filtered, Iout_filtered, Iref);  
 
 
               int8_t delta_d = FF_CON(Vin, Vin_filtered, Vout);

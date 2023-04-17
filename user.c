@@ -1,6 +1,6 @@
 
-#include <pic16f1615.h>
-
+//#include <pic16f1615.h>
+#include <xc.h>
 #include "user.h"
 
 void Setup_IOs(void)
@@ -83,9 +83,16 @@ char Control_loop(unsigned int Vin, unsigned int Vout, unsigned int Iout, unsign
      * Input K parameters for current controller
      * then the previous state of current controller is loaded
     */
-    PID1K1 = IK1;
+    
+    PID1K1H = (uint8_t)(IK1>>8);
+    PID1K1L = (uint8_t)IK1;
+    PID1K2H = (uint8_t)(IK2>>8);
+    PID1K2L = (uint8_t)IK2;
+    PID1K3H = (uint8_t)(IK3>>8);
+    PID1K3L = (uint8_t)IK3;
+   /* PID1K1 = IK1;
     PID1K2 = IK2;
-    PID1K3 = IK3;
+    PID1K3 = IK3;*/
     PID1OUTU = IOUTU;
     PID1OUTHH = IOUTHH;
     PID1OUTHL = IOUTHL;
@@ -146,10 +153,15 @@ char Control_loop(unsigned int Vin, unsigned int Vout, unsigned int Iout, unsign
      * Input K parameters for voltage controller
      * then the previous state of voltage controller is loaded
     */
-    
-    PID1K1 = VK1;
+    PID1K1H = (uint8_t)(VK1>>8);
+    PID1K1L = (uint8_t)VK1;
+    PID1K2H = (uint8_t)(VK2>>8);
+    PID1K2L = (uint8_t)VK2;
+    PID1K3H = (uint8_t)(VK3>>8);
+    PID1K3L = (uint8_t)VK3;
+    /*PID1K1 = VK1;
     PID1K2 = VK2;
-    PID1K3 = VK3; 
+    PID1K3 = VK3; */
     PID1OUTU = VOUTU;
     PID1OUTHH = VOUTHH;
     PID1OUTHL = VOUTHL;
@@ -212,25 +224,25 @@ char Control_loop(unsigned int Vin, unsigned int Vout, unsigned int Iout, unsign
 
 void LoadDutyValue(uint16_t dutyValue)
 {
-   // dutyValue &= 0x03FF;   
-    // Load duty cycle value
-    /*if(CCP1CONbits.FMT)
+    dutyValue &= 0x03FF;   
+    //Load duty cycle value
+    if(CCP1CONbits.FMT)
     {
         dutyValue <<= 4;
         dutyValue <<= 2;
-        CCPR1H = dutyValue >> 8;
-        CCPR1L = dutyValue;
+        CCPR1H = (uint8_t)dutyValue >> 8;
+        CCPR1L = (uint8_t)dutyValue;
         
-        CCPR2H = dutyValue >> 8;
-        CCPR2L = dutyValue;
+        CCPR2H = (uint8_t)dutyValue >> 8;
+        CCPR2L = (uint8_t)dutyValue;
     }
-    else*/
+    else
     {
-       // CCPR1H = dutyValue >> 8;
-        CCPR1L = dutyValue;
+        CCPR1H = (uint8_t)dutyValue >> 8;
+        CCPR1L = (uint8_t)dutyValue;
         
-       // CCPR2H = dutyValue >> 8;
-        CCPR2L = dutyValue;
+        CCPR2H = (uint8_t)dutyValue >> 8;
+        CCPR2L = (uint8_t)dutyValue;
     }
 }
 
@@ -247,7 +259,7 @@ unsigned int Vin_LP_filter(unsigned int in)
     static unsigned long filter = 0;
     static unsigned int result = 0;
     filter = (filter - result) + in;
-    result = (filter>>8);
+    result = (uint16_t)(filter>>8);
     return result;
 }
 
@@ -262,7 +274,18 @@ uint16_t Current_LP_filter(uint16_t in)
  
     filter = filter + (in<<1);
     filter = filter - (result<<1); 
-    result = (filter>>8);
+    result = (uint16_t)(filter>>8);
+
+    return result;
+}
+
+uint16_t Vout_LP_filter(uint16_t in)
+{
+    static uint32_t filter = 0;
+    static uint16_t result = 0;  
+    filter = filter + (in<<4);
+    filter = filter - (result<<4); 
+    result = (uint16_t)(filter>>8);
 
     return result;
 }
@@ -297,9 +320,13 @@ int FF_CON(uint16_t in, uint16_t  in_f, uint16_t _Vout)
 
 uint16_t multiply(uint16_t multiplier, uint16_t num)
 {
+    PID1OUTU = 0;
+    PID1OUTHH = 0;
+    PID1OUTHL = 0;
     PID1OUTLL = 0;
     PID1OUTLH = 0;
-    PID1K1 = multiplier;
+    PID1K1H = (uint8_t)(multiplier>>8);
+    PID1K1L = (uint8_t)multiplier;
     PID1SET = num;
     PID1IN = 0;
     while(PID1CONbits.BUSY)NOP() ;  //wait for finished calculation

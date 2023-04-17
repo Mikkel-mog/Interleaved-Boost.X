@@ -16,12 +16,12 @@
 // IK values should all be multiplied with 2^16
 #define Ikp 0.1 *devider
 #define Iki 2.4 *devider
-#define Ikd 10e-6 *devider
+#define Ikd 0.00001*devider
 
 // VK values should all be multiplied with 2^16
-#define Vkp 0.01 *devider
+#define Vkp 0.01 * devider
 #define Vki 136.45 *devider
-#define Vkd 4e-6 *devider
+#define Vkd 0.000004 *devider
 
 #define Ts 0.00025
 
@@ -42,6 +42,7 @@ void Period8BitSet(uint8_t periodVal);
 
 unsigned int Vin_LP_filter(unsigned int in);
 uint16_t Current_LP_filter(uint16_t in);
+uint16_t Vout_LP_filter(uint16_t in);
 uint16_t multiply(uint16_t multiplier, uint16_t num);
 
 int FF_CON(uint16_t in, uint16_t  in_f, uint16_t _Vout);
