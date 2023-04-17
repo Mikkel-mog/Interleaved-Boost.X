@@ -44,14 +44,16 @@ void Setup_PID(void)
 }
 
 
-int IK1 = (Ikp + Ts*Iki + Ikd/Ts);
-int IK2 = -(Ikp + 2*Ikd / Ts);
-int IK3 = (Ikd/Ts);
+int16_t IK1 = (Ikp + Ts*Iki + Ikd/Ts);
+int16_t IK2 = -(Ikp + 2*Ikd / Ts);
+int16_t IK3 = (Ikd/Ts);
 
-int VK1 = (Vkp + Ts*Vki + Vkd/Ts);
-int VK2 = -(Vkp + 2*Vkd / Ts);
-int VK3 = (Vkd/Ts);
+int16_t VK1 = (Vkp + Ts*Vki + Vkd/Ts);
+int16_t VK2 = -(Vkp + 2*Vkd / Ts);
+int16_t VK3 = (Vkd/Ts);
 
+uint16_t unlinearity_correction[64] = {0,0,0,0,0,0,0,0,283,	238,	210	,187,	169,	153,	139,	127,	117,	107,	99,	92,	85,	79,	74,	69,	65,	60,	57,	53,	50,	47,	44,	41,	39,	36,	34,	32,	30,	28,	26,	25,	23,	21,	20,	19,	17,	16,	15,	14,	13,	11,	10,	9,	9,	8,	7,	6,	5,	4,	4,	3,	2,	1,	1,	0};
+uint16_t unlinearity_correction_steep[32] = {9945,	4953,	3289,	2457,	1957,	1625,	1387,	1209,	1070,	959,	868,	793,	729,	674,	626,	585,	548,	515,	486,	460,	436,	414,	395,	377,	360,	345,	330,	317,	305,	293,	283,	273};
 char Control_loop(unsigned int Vin, unsigned int Vout, unsigned int Iout, unsigned int Iref)
 {
     
@@ -83,9 +85,25 @@ char Control_loop(unsigned int Vin, unsigned int Vout, unsigned int Iout, unsign
      * Input K parameters for current controller
      * then the previous state of current controller is loaded
     */
+    uint16_t IK1_corrected;
+    if(Iout < 3)
+    {
+        if(Iref & 0xff80)
+        {
+            IK1_corrected= IK1 + unlinearity_correction[Iref>>4];
+        }
+        else
+        {
+            IK1_corrected = IK1 + unlinearity_correction_steep[Iref>>2];
+        }
+    }
+    else
+    {
+        IK1_corrected = IK1;
+    }
     
-    PID1K1H = (uint8_t)(IK1>>8);
-    PID1K1L = (uint8_t)IK1;
+    PID1K1H = (uint8_t)(IK1_corrected>>8);
+    PID1K1L = (uint8_t)IK1_corrected;
     PID1K2H = (uint8_t)(IK2>>8);
     PID1K2L = (uint8_t)IK2;
     PID1K3H = (uint8_t)(IK3>>8);
