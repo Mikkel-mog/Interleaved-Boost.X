@@ -52,8 +52,6 @@ int16_t VK1 = (Vkp + Ts*Vki + Vkd/Ts);
 int16_t VK2 = -(Vkp + 2*Vkd / Ts);
 int16_t VK3 = (Vkd/Ts);
 
-uint16_t unlinearity_correction[64] = {0,0,0,0,0,0,0,0,283,	238,	210	,187,	169,	153,	139,	127,	117,	107,	99,	92,	85,	79,	74,	69,	65,	60,	57,	53,	50,	47,	44,	41,	39,	36,	34,	32,	30,	28,	26,	25,	23,	21,	20,	19,	17,	16,	15,	14,	13,	11,	10,	9,	9,	8,	7,	6,	5,	4,	4,	3,	2,	1,	1,	0};
-uint16_t unlinearity_correction_steep[32] = {9945,	4953,	3289,	2457,	1957,	1625,	1387,	1209,	1070,	959,	868,	793,	729,	674,	626,	585,	548,	515,	486,	460,	436,	414,	395,	377,	360,	345,	330,	317,	305,	293,	283,	273};
 char Control_loop(unsigned int Vin, unsigned int Vout, unsigned int Iout, unsigned int Iref)
 {
     
@@ -166,7 +164,7 @@ char Control_loop(unsigned int Vin, unsigned int Vout, unsigned int Iout, unsign
     {
         _Vref = 1023;
     }
-   // PORTA &= 0b11111011;
+
      /*
      * Input K parameters for voltage controller
      * then the previous state of voltage controller is loaded
@@ -230,12 +228,6 @@ char Control_loop(unsigned int Vin, unsigned int Vout, unsigned int Iout, unsign
         Duty_cycle = 0;
     }        
     
-    /*static uint16_t test= 0;
-    test++;*/
-    /*if(test == 1000)
-    {
-        test = 0;
-    }*/
     return Duty_cycle;
 }
 

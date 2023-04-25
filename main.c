@@ -6,11 +6,12 @@
  */
 
 
+// CONFIG1
 #pragma config FOSC = INTOSC    // Oscillator Selection Bits (INTOSC oscillator: I/O function on CLKIN pin)
 #pragma config PWRTE = OFF      // Power-up Timer Enable (PWRT disabled)
 #pragma config MCLRE = ON       // MCLR Pin Function Select (MCLR/VPP pin function is MCLR)
 #pragma config CP = OFF         // Flash Program Memory Code Protection (Program memory code protection is disabled)
-#pragma config BOREN = ON       // Brown-out Reset Enable (Brown-out Reset enabled)
+#pragma config BOREN = OFF      // Brown-out Reset Enable (Brown-out Reset disabled)
 #pragma config CLKOUTEN = OFF   // Clock Out Enable (CLKOUT function is disabled. I/O or oscillator function on the CLKOUT pin)
 #pragma config IESO = ON        // Internal/External Switch Over (Internal External Switch Over mode is enabled)
 #pragma config FCMEN = ON       // Fail-Safe Clock Monitor Enable (Fail-Safe Clock Monitor is enabled)
@@ -22,15 +23,14 @@
 #pragma config PLLEN = ON       // PLL Enable Bit (4x PLL is always enabled)
 #pragma config STVREN = ON      // Stack Overflow/Underflow Reset Enable (Stack Overflow or Underflow will cause a Reset)
 #pragma config BORV = LO        // Brown-out Reset Voltage Selection (Brown-out Reset Voltage (Vbor), low trip point selected.)
-#pragma config LPBOR = OFF      // Low-Power Brown Out Reset (Low-Power BOR is disabled)
-#pragma config LVP = ON         // Low-Voltage Programming Enable (Low-voltage programming enabled)
+#pragma config LPBOR = ON      // Low-Power Brown Out Reset (Low-Power BOR is disabled)
+#pragma config LVP = OFF        // Low-Voltage Programming Enable (High-voltage on MCLR/VPP must be used for programming)
 
 // CONFIG3
 #pragma config WDTCPS = WDTCPS1F// WDT Period Select (Software Control (WDTPS))
-#pragma config WDTE = OFF       // Watchdog Timer Enable (WDT enabled)
+#pragma config WDTE = OFF       // Watchdog Timer Enable (WDT disabled)
 #pragma config WDTCWS = WDTCWSSW// WDT Window Select (Software WDT window size control (WDTWS bits))
 #pragma config WDTCCS = SWC     // WDT Input Clock Selector (Software control, controlled by WDTCS bits)
-
 
 
 #include <xc.h>
@@ -38,7 +38,7 @@
 #include "user.h"
 
 
-#define T1Period 65536-224 // set acquisition period to 224 * 31.25ns 
+#define T1Period 65536-230 // set acquisition period to 224 * 31.25ns 
 
 
 unsigned char C1IFLAG = 0x20;
@@ -67,27 +67,24 @@ void __interrupt() ISR(void)
    // PORTA |= 0b00000100;
     if(PIR2bits.TMR6IF)
     {
-      PORTA |= 0b00000100;
+      //PORTA |= 0b00000100;
 
         PIR2bits.TMR6IF = 0; // set low timer6 interrupt flag
     //    T1CONbits.TMR1ON = 1;         
         ADCON0 &= 0b10000011;
-        ADCON0 |= 0b00010000;
+        ADCON0 |= 0b00001100; // AN4
         TMR1 = T1Period; 
         Period8BitSet(PWM_period);
 
         LoadDutyValue(CDC);
 
-        /*state = 0;
+        
         Vout = Vout_temp;
         Vin = Vin_temp;
         Iout = (Iout_temp<<1);
-        Iref = Iref_temp;*/
+        Iref = Iref_temp;
         
-        Iref = 512;
-        Iout = 255;
-        Vin = 512;          
-        Vout = 200;
+
         state = 0;
         new_sample = 1;      
 
@@ -109,7 +106,7 @@ void __interrupt() ISR(void)
         {            
             Iout_temp = ADRES;
             ADCON0 &= 0b10000011;
-            ADCON0 |= 0b00011000;
+            ADCON0 |= 0b00010100; // AN5
             TMR1 = T1Period;
         //    T1CONbits.TMR1ON = 1;  
             state++;
@@ -118,7 +115,7 @@ void __interrupt() ISR(void)
         {
             Vout_temp = ADRES;
             ADCON0 &= 0b10000011;
-            ADCON0 |= 0b00011000;
+            ADCON0 |= 0b00001000; // AN2
             TMR1 = T1Period;
          //   T1CONbits.TMR1ON = 1;   
             state++;
@@ -127,7 +124,7 @@ void __interrupt() ISR(void)
         {
             Iref_temp = ADRES;
             ADCON0 &= 0b10000011;
-            ADCON0 |= 0b00011000;
+            ADCON0 |= 0b00001100;  //AN3
             TMR1 = T1Period;
          //   T1CONbits.TMR1ON = 1;   
             state++;
@@ -173,12 +170,6 @@ void main(void) {
 
     ConfigureINTERRUPT();
 
-
-    TRISA &= 0b11111011;
-    PORTA &= 0b11111011;
-    PORTA |= 0b00000100;
-
-    
     while(1)
     {
 
@@ -189,8 +180,8 @@ void main(void) {
             if(Vin > 290 && !CM1CON0bits.C1OUT)
             {
               static uint8_t freq_iterator = 0; 
-              freq_iterator++;
-              if(freq_iterator == 20) freq_iterator = 0;
+              freq_iterator++; 
+              if(freq_iterator == 21) freq_iterator = 0;
  
               uint16_t Vin_filtered = Vin_LP_filter(Vin);  
 
@@ -214,7 +205,6 @@ void main(void) {
               
               if(Duty_cycle > 204) Duty_cycle = 204;
 
-
               uint16_t temp =(uint16_t)Duty_cycle*(uint16_t)arr_i[freq_iterator];//multiply(arr_i[freq_iterator],(uint16_t)Duty_cycle);
              
               temp = (temp>>4);
@@ -232,7 +222,7 @@ void main(void) {
                 
                 Control_loop(Vin, Vout, Iout, Iref);   
             }
-            PORTA &= 0b11111011;
+           // PORTA &= 0b11111011;
         }
         
     }
